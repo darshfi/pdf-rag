@@ -70,14 +70,14 @@ User question: {question}
 
     for attempt in range(3):
         try:
-            # Fresh client every call — avoids the "client closed" error
-            fresh_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+            # FIX: Use the passed-in api_key variable here instead of os.getenv
+            fresh_client = genai.Client(api_key=get_api_key())
+
             response = fresh_client.models.generate_content(
                 model="gemini-2.5-flash",
                 contents=history
             )
             answer = response.text
-            # Add Gemini's reply to history so next question has context
             history.append({"role": "model", "parts": [{"text": answer}]})
             return answer, history
 
