@@ -8,17 +8,51 @@ from dotenv import load_dotenv
 import streamlit as st
 import time
 
-load_dotenv() # loads up the .env file, parses it and gets the variables
 
-embedder = SentenceTransformer("all-MiniLM-l6-v2") # to convert complex, unstructured data into vectors
+load_dotenv()
 
+# 1. Initialize your local embedder (remains unchanged)
+@st.cache_resource # Keeps the model cached in memory so it doesn't reload on every interaction
+def load_embedder():
+    return SentenceTransformer("all-MiniLM-l6-v2")
+
+embedder = load_embedder()
+
+# 2. Refactored function to prioritize the User's input over your own keys
 def get_api_key():
-    try:
-        return st.secrets["GEMINI_API_KEY"]  # Streamlit Cloud
-    except:
-        return os.getenv("GEMINI_API_KEY")   # Local .env
+    # Priority 1: Check if user typed it into the app sidebar
+    if "user_gemini_key" in st.session_state and st.session_state["user_gemini_key"]:
+        return st.session_state["user_gemini_key"]
 
-client = genai.Client(api_key=get_api_key())
+    # Priority 2: Fallback to your own keys (Optional - remove if you want to block unauthorized access)
+    try:
+        return st.secrets["GEMINI_API_KEY"]
+    except:
+        return os.getenv("GEMINI_API_KEY")
+
+    # 3. Create the UI Widget in the Sidebar to capture the key
+with st.sidebar:
+    st.header("API Configuration")
+
+    # We store the input directly inside st.session_state["user_gemini_key"]
+    st.text_input(
+        "Enter your Gemini API Key:",
+        type="password",
+        key="user_gemini_key",
+        placeholder="AIzaSy..."
+    )
+    st.markdown("[Get a Gemini API Key](https://google.com)")
+
+# 4. Fetch the final resolved key
+api_key = get_api_key()
+
+# 5. Stop the app execution if no key is found from ANY source
+if not api_key:
+    st.warning("⚠️ Please provide a Gemini API key in the sidebar to start using the RAG app.")
+    st.stop()
+
+# 6. Initialize the Gemini client safely using the resolved key
+client = genai.Client(api_key=api_key)
 
 def extract_text(pdf_file) -> str:
     """Extract all text from an uploaded PDF."""
