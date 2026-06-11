@@ -9,32 +9,17 @@ import streamlit as st
 import time
 
 
-load_dotenv()
+import os
+import streamlit as st
+import google.generativeai as genai
+from sentence_transformers import SentenceTransformer
+from dotenv import load_dotenv
 
-# 1. Initialize your local embedder (remains unchanged)
-@st.cache_resource # Keeps the model cached in memory so it doesn't reload on every interaction
-def load_embedder():
-    return SentenceTransformer("all-MiniLM-l6-v2")
+# 1. ALWAYS PUT UI ELEMENTS FIRST (Ensures sidebar renders instantly)
+st.set_page_config(page_title="PDF RAG App", layout="wide")
 
-embedder = load_embedder()
-
-# 2. Refactored function to prioritize the User's input over your own keys
-def get_api_key():
-    # Priority 1: Check if user typed it into the app sidebar
-    if "user_gemini_key" in st.session_state and st.session_state["user_gemini_key"]:
-        return st.session_state["user_gemini_key"]
-
-    # Priority 2: Fallback to your own keys (Optional - remove if you want to block unauthorized access)
-    try:
-        return st.secrets["GEMINI_API_KEY"]
-    except:
-        return os.getenv("GEMINI_API_KEY")
-
-    # 3. Create the UI Widget in the Sidebar to capture the key
 with st.sidebar:
     st.header("API Configuration")
-
-    # We store the input directly inside st.session_state["user_gemini_key"]
     st.text_input(
         "Enter your Gemini API Key:",
         type="password",
@@ -43,16 +28,40 @@ with st.sidebar:
     )
     st.markdown("[Get a Gemini API Key](https://google.com)")
 
-# 4. Fetch the final resolved key
+# 2. RESOLVE THE API KEY
+load_dotenv()
+
+def get_api_key():
+    # Check sidebar input first
+    if "user_gemini_key" in st.session_state and st.session_state["user_gemini_key"]:
+        return st.session_state["user_gemini_key"]
+    # Fallback to local files
+    try:
+        return st.secrets["GEMINI_API_KEY"]
+    except:
+        return os.getenv("GEMINI_API_KEY")
+
 api_key = get_api_key()
 
-# 5. Stop the app execution if no key is found from ANY source
+# 3. STOP APP IF NO KEY EXISTS
 if not api_key:
     st.warning("⚠️ Please provide a Gemini API key in the sidebar to start using the RAG app.")
-    st.stop()
+    st.stop() # Prevents downloading heavy models if unauthorized
 
-# 6. Initialize the Gemini client safely using the resolved key
+# 4. INITIALIZE CLIENTS (Only runs if key exists)
 client = genai.Client(api_key=api_key)
+
+# 5. CACHE THE HEAVY EMBEDDING MODEL (Prevents app freezes)
+@st.cache_resource
+def load_embedder():
+    return SentenceTransformer("all-MiniLM-l6-v2")
+
+with st.spinner("Loading AI Embedding models..."):
+    embedder = load_embedder()
+
+# --- YOUR MAIN RAG APP CODE CONTINUES HERE ---
+st.title("📄 PDF RAG Assistant")
+st.write("App is ready! Upload your PDF below.")
 
 def extract_text(pdf_file) -> str:
     """Extract all text from an uploaded PDF."""
