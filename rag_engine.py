@@ -8,13 +8,6 @@ from dotenv import load_dotenv
 import streamlit as st
 import time
 
-
-import os
-import streamlit as st
-import google.generativeai as genai
-from sentence_transformers import SentenceTransformer
-from dotenv import load_dotenv
-
 # 1. ALWAYS PUT UI ELEMENTS FIRST (Ensures sidebar renders instantly)
 st.set_page_config(page_title="PDF RAG App", layout="wide")
 
