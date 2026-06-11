@@ -1,12 +1,29 @@
 import streamlit as st
-from rag_engine import extract_text, chunk_text, build_index, retrieve, ask_gemini
+from rag_engine import extract_text, chunk_text, build_index, retrieve, ask_gemini, get_api_key
 from dotenv import load_dotenv
 
 load_dotenv()
 
 st.set_page_config(page_title="PDF Q&A", page_icon="📄", layout="centered")
+
+with st.sidebar:
+    st.header("🔑 API Configuration")
+    st.text_input(
+        "Enter your Gemini API Key (Optional):",
+        type="password",
+        key="user_gemini_key",
+        placeholder="AIzaSy..."
+    )
+    st.markdown("[Get a free Gemini API Key](https://aistudio.google.com/)")
+
+api_key = get_api_key()
+
 st.title("📄 RAG — Ask Your PDF")
 st.caption("Upload a PDF and ask questions about it.")
+
+if not api_key:
+    st.warning("⚠️ Please provide a Gemini API key in the sidebar or app secrets to start using the app.")
+    st.stop()
 
 pdf_file = st.file_uploader("Upload a PDF", type="pdf")
 

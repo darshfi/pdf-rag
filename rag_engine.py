@@ -1,60 +1,27 @@
-import fitz # PyMuPDF extracts text from pdf
-import faiss #stores vectors and finds similar vectors to the query
+import fitz
+import faiss
 import numpy as np
-from sentence_transformers import SentenceTransformer # converts text chunks into vector(locally)
+from sentence_transformers import SentenceTransformer
 from google import genai
 import os
-from dotenv import load_dotenv
 import streamlit as st
 import time
 
-# 1. ALWAYS PUT UI ELEMENTS FIRST (Ensures sidebar renders instantly)
-st.set_page_config(page_title="PDF RAG App", layout="wide")
-
-with st.sidebar:
-    st.header("API Configuration")
-    st.text_input(
-        "Enter your Gemini API Key:",
-        type="password",
-        key="user_gemini_key",
-        placeholder="AIzaSy..."
-    )
-    st.markdown("[Get a Gemini API Key](https://google.com)")
-
-# 2. RESOLVE THE API KEY
-load_dotenv()
-
 def get_api_key():
-    # Check sidebar input first
-    if "user_gemini_key" in st.session_state and st.session_state["user_gemini_key"]:
-        return st.session_state["user_gemini_key"]
-    # Fallback to local files
-    try:
+    """Resolves the API key based on priority: Sidebar -> Streamlit Secrets -> Env Variables."""
+    if "user_gemini_key" in st.session_state and st.session_state["user_gemini_key"].strip():
+        return st.session_state["user_gemini_key"].strip()
+
+    if "GEMINI_API_KEY" in st.secrets:
         return st.secrets["GEMINI_API_KEY"]
-    except:
-        return os.getenv("GEMINI_API_KEY")
 
-api_key = get_api_key()
+    return os.getenv("GEMINI_API_KEY")
 
-# 3. STOP APP IF NO KEY EXISTS
-if not api_key:
-    st.warning("⚠️ Please provide a Gemini API key in the sidebar to start using the RAG app.")
-    st.stop() # Prevents downloading heavy models if unauthorized
-
-# 4. INITIALIZE CLIENTS (Only runs if key exists)
-client = genai.Client(api_key=api_key)
-
-# 5. CACHE THE HEAVY EMBEDDING MODEL (Prevents app freezes)
 @st.cache_resource
 def load_embedder():
     return SentenceTransformer("all-MiniLM-l6-v2")
 
-with st.spinner("Loading AI Embedding models..."):
-    embedder = load_embedder()
-
-# --- YOUR MAIN RAG APP CODE CONTINUES HERE ---
-st.title("📄 PDF RAG Assistant")
-st.write("App is ready! Upload your PDF below.")
+embedder = load_embedder()
 
 def extract_text(pdf_file) -> str:
     """Extract all text from an uploaded PDF."""
